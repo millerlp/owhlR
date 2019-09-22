@@ -1,0 +1,19 @@
+Package: owhlR
+Type: Package
+Title: Open Wave Height Logger Processing In R
+Version: 0.1.0
+Authors@R: c(person("Luke", "Miller", email= "contact@lukemiller.org", role = c("aut","cre")))
+Description: Process Open Wave Height Logger pressure data to produce ocean wave statistics
+URL: https://github.com/millerlp/owhlR
+BugReports: https://github.com/millerlp/owhlR/issues
+Depends:
+    R (>= 3.3.0)
+Suggests:
+    oceanwaves,
+    scales,
+    oce,
+    knitr,
+    rmarkdown,
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
