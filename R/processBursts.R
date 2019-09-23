@@ -4,8 +4,7 @@
 #'
 #' @param Ht A vector of sea surface heights
 #' @param times A vector of POSIXct time stamps
-#' @param bounds A vector of row indices in Ht representing sampling burst boundaries
-#' @param minutes The desired sampling burst length, in minutes
+#' @param burstLength The desired sampling burst length, in minutes
 #' @param Fs The sampling rate of the data, units of Hz (samples per second)
 #' @param method The wave statistic estimation method, either 'sp' for spectral
 #' (default) or 'zc' for zero-crossing
@@ -16,11 +15,13 @@
 #' burst
 #'
 #' @export
-#' @importFrom oceanwaves wavestatsSP wavestatsZC
+#' @importFrom oceanwaves waveStatsSP waveStatsZC
 
 
-processBursts <- function(Ht, times, bounds, minutes, Fs,
-                          method = 'sp', tzone='UTC'){
+processBursts <- function(Ht, times, burstLength = NULL, Fs,
+                          method = 'sp', tzone = NULL){
+  # Determine boundaries of bursts
+  bounds <- owhlR::burstBounds(times, Fs = Fs, minutes = burstLength)
 
   for (i in 1: (length(bounds)-1) ){
     # Extract the chunks of contiguous data
@@ -29,9 +30,9 @@ processBursts <- function(Ht, times, bounds, minutes, Fs,
       tempdatHt <- Ht
       timesHt <- times
       # Check that the chunk meets the desired burst length
-      chunklength <- difftime(timesHt[bounds[2]],
+      chunklength <- as.numeric(difftime(timesHt[bounds[2]],
                               timesHt[bounds[1]],
-                              units='mins')
+                              units='mins'))
       if (chunklength < minutes) {
         stop('Time series is too short')
       }
@@ -39,21 +40,26 @@ processBursts <- function(Ht, times, bounds, minutes, Fs,
       # There are at least 2 chunks
       tempdatHt <- Ht[bounds[i]:bounds[i+1]]
       timesHt <- times[bounds[i]:bounds[i+1]]
-      chunklength <- difftime(timesHt[bounds[i+1]],
-                              timesHt[bounds[i]],
-                              units='mins')
+      chunklength <- as.numeric(difftime(timesHt[length(timesHt)],
+                              timesHt[1],
+                              units='mins'))
     }
-
-    if (chunklength >= minutes) {
+    # Check that the length of this is within a margin of error
+    # of the desired burstLength
+    if (chunklength >= burstLength-0.01 &
+        chunklength <= burstLength+0.01) {
       # Extract the date & time at the end of the chunk to be used
       # as the identifying time stamp for this chunk
       tempDateTime <- timesHt[length(timesHt)]
-      # Use the spectral analysis method to generate wave stats
-      spstats <- oceanwaves::waveStatsSP(tempdatHt,
-                                        Fs = Fs)
-      # Using the zero-crossing function to estimate wave stats
-      zcstats <- oceanwaves::waveStatsZC(tempdatHt,
-                                         Fs = Fs)
+      if (method == 'sp'){
+        # Use the spectral analysis method to generate wave stats
+        spstats <- oceanwaves::waveStatsSP(tempdatHt,
+                                           Fs = Fs)
+      } else if (method == 'zc'){
+        # Using the zero-crossing function to estimate wave stats
+        zcstats <- oceanwaves::waveStatsZC(tempdatHt,
+                                           Fs = Fs)
+      }
       # Stick the wave heights and periods in lists
       if (i == 1){
         if (method == 'sp'){
@@ -88,6 +94,11 @@ processBursts <- function(Ht, times, bounds, minutes, Fs,
     # Convert list object to data frame
     results <- as.data.frame(zcstatsList)
   }
-  # Reset time zone attribute after data frame conversion
-  attr(results$DateTime,'tzone') <- tzone
+  if (!is.null(tzone)){
+    # Reset time zone attribute after data frame conversion
+    attr(results$DateTime,'tzone') <- tzone
+  }
+  # Return results data frame
+  results
 }
+
