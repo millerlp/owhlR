@@ -5,7 +5,7 @@
 \title{Generate wave statistics for multiple sampling bursts}
 \usage{
 processBursts(Ht, times, burstLength = NULL, Fs, method = "sp",
-  tzone = "UTC")
+  tzone = NULL)
 }
 \arguments{
 \item{Ht}{A vector of sea surface heights}
