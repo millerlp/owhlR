@@ -15,6 +15,7 @@
 #' burst
 #'
 #' @export
+#'
 #' @importFrom oceanwaves waveStatsSP waveStatsZC
 
 

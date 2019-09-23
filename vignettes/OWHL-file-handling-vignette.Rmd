@@ -170,7 +170,7 @@ value as either a positive (Northern Hemisphere) or negative (Southern Hemispher
 ```{r convertPressureToSeaWater}
 # Create a new column in dat with the estimated depth calculated
 # from the pressure in millibar
-dat$swDepth.m = millibarToSeawater(dat$swPressure.mbar, latitude = 33.72)
+dat$swDepth.m = owhlR::millibarToSeawater(dat$swPressure.mbar, latitude = 33.72)
 ```
 
 
@@ -210,9 +210,10 @@ wave statistics.
 ## Calculating wave statistics
 
 Wave statistics are generally calculated for discrete chunks of time, often in the range of 15 to 30 minutes. If the original data were collected in 
-non-contiguous chunks of time (such as a 15 minute sampling burst followed by 45 minutes of no data collection) then the time series in `dat` will already have natural boundaries for each burst to be analyzed. If instead the data
+non-contiguous chunks of time (such as a 15 minute sampling burst followed by 45 minutes of no data collection) then the time series in `dat` will already have natural boundaries for each burst to be analyzed due to gaps in the `DateTime` column values. If instead the data
 were collected continuously, as the OWHL is capable of doing, it would be necessary to create our own boundaries for each chunk of time to be analyzed. Our example data set in this vignette is short, so we will analyze the data in 5 minute chunks just for
 demonstration purposes.
+
 ```{r testingDELETEME,eval=FALSE,echo=FALSE}
 t1= as.POSIXct('2019-09-19 10:00:00',tz='UTC')
 t2 = as.POSIXct('2019-09-19 10:15:00',tz='UTC')
@@ -234,86 +235,17 @@ testbounds = burstBounds(testtimes, Fs = 1)
 ```
 
 
-```{r findBounds}
-# Sampling rate Fs was defined earlier as 4
-# Request 5 minute burst intervals
-bounds = burstBounds(dat$DateTime, Fs = Fs, minutes = 5)
-```
-
-After defining a vector `bounds` containing row indices in the 
-`dat` data frame to be analyzed as separate time chunks, step through the time chunks.
 
 ```{r processTimeChunks}
 # Go through each time chunk and calculate the wave
 # height and period of the de-trended data (removing tide signal).
 
-# Define the minimum length for a burst
-minutes <- 5
-
-for (i in 1: (length(bounds)-1) ){
-  # Extract the chunks of contiguous data
-  if (length(bounds) == 2) {
-    # There is only one chunk
-    tempdat <- dat
-    # Check that the chunk meets the desired burst length
-    chunklength <- difftime(tempdat$DateTime[bounds[2]],
-                           tempdat$DateTime[bounds[1]], 
-                           units='mins')
-    if (chunklength < minutes) {
-      stop('Time series is too short')
-    }
-  } else if (length(bounds) > 2) {
-    # There are at least 2 chunks
-    tempdat <- dat[bounds[i]:bounds[i+1],]
-    chunklength <- difftime(tempdat$DateTime[bounds[i+1]],
-                       tempdat$DateTime[bounds[i]], 
-                       units='mins')
-  }
-  
-  if (chunklength >= minutes) {
-    # Extract the date & time at the end of the chunk to be used
-    # as the identifying time stamp for this chunk
-    tempDateTime <- tempdat[nrow(tempdat),'DateTime'] 
-    # Use the spectral analysis method to generate wave stats
-    spstats = oceanwaves::waveStatsSP(tempdat$swDepthCorrected.m, 
-                                    Fs = Fs)
-    # Using the zero-crossing function to estimate wave stats 
-    zcstats <- oceanwaves::waveStatsZC(tempdat$swDepthCorrected.m, 
-                                    Fs = Fs)
-    # Stick the wave heights and periods in lists
-    if (i == 1){
-      # Add DateTime to the spectral results 
-      spstats[['DateTime']] = tempDateTime
-      # Save spectral results as a list
-      spstatsList = spstats
-      # Add DateTime to the zerocross results
-      zcstats[['DateTime']] = tempDateTime
-      # Save zerocross results as a list
-      zcstatsList = zcstats
-    } else {
-      # Add DateTime to the spectral results 
-      spstats[['DateTime']] = tempDateTime
-      spstatsList = mapply(c, spstatsList, spstats, SIMPLIFY=FALSE)
-      # Add DateTime to zerocross results
-      zcstats[['DateTime']] = tempDateTime
-      # Add to the zerocross list
-      zcstatsList = mapply(c, zcstatsList, zcstats, SIMPLIFY=FALSE)
-    }
-  }
-
-
-
-}
-  # Convert list object to data frame
-  spstats = as.data.frame(spstatsList)
-  # Reset time zone attribute after data frame conversion
-  attr(spstats$DateTime,'tzone') = myTimeZone
-  # Convert list object to data frame
-  zcstats = as.data.frame(zcstatsList)
-  # Reset time zone attribute after data frame conversion
-  attr(zcstats$DateTime,'tzone') = myTimeZone
-  # Clean up
-  rm(zcstatsList, spstatsList, tempdat,tempDateTime)
+wavesSP = processBursts(Ht = dat$swDepthCorrected.m,
+                          times = dat$DateTime,
+                          burstLength = 5,
+                          Fs = 4,
+                          method = 'sp',
+                          tzone = 'UTC')
 ```
 
 The results for the spectral analysis of wave data are shown 
@@ -336,11 +268,26 @@ below. The output includes:
 * `EPS4` Spectral width parameter.
 
 ```{r wavespResults}
-spstats
+wavesSP
 ```
 
 
-Wave climate estimates based on spectral analysis methods are probably the more commonly used method, but the wave-by-wave analysis using the zero-crossing method is provided for interested users. The output statistics from the zero crossing 
+Wave climate estimates based on spectral analysis methods are probably the more commonly used method, but the wave-by-wave analysis using the zero-crossing method is provided for interested users. 
+
+```{r processTimeChunksZeroCross}
+# Go through each time chunk and calculate the wave
+# height and period of the de-trended data (removing tide signal).
+
+wavesZC = processBursts(Ht = dat$swDepthCorrected.m,
+                          times = dat$DateTime,
+                          burstLength = 5,
+                          Fs = 4,
+                          method = 'zc',
+                          tzone = 'UTC')
+```
+
+
+The output statistics from the zero crossing 
 algorithm are:
 
 * `Hsig` - Mean height of the highest 1/3 of waves in the data set. Units = same as input surface elevations, usually meters.
@@ -357,7 +304,7 @@ algorithm are:
 
 
 ```{r wavezcResults}
-zcstats
+wavesZC
 ```
 
 

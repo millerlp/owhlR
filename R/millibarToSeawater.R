@@ -11,11 +11,13 @@
 #' collected.
 #'
 #' @return A vector of seawater depth in meters
+#'
 #' @export
+#'
 #' @importFrom oce swDepth
 
 
-millibarToSeawater <- function (x, latitude = NULL){
+millibarToSeawater <- function(x, latitude = NULL){
   # Sanity check
   if (is.null(latitude)){
     stop('Please provide a numeric latitude for the data, such as 33.72')
