@@ -8,7 +8,7 @@
 #'
 #' @param x A vector of POSIXct time stamps
 #' @param Fs Sampling rate, units of Hertz (samples per second)
-#' @param minutes Desired length, in minutes, of sampling bursts to be analyzed
+#' @param burstLength Desired length, in minutes, of sampling bursts to be analyzed
 #'
 #' @return A vector of row indices from input vector x that define time
 #' chunks to be analyzed. Each value is the start and end of a time chunk
@@ -16,7 +16,7 @@
 #'
 #' @export
 
-burstBounds <- function(x, Fs, minutes = NULL) {
+burstBounds <- function(x, Fs, burstLength = NULL) {
   # Sanity check
   if (class(x)[1] != 'POSIXct'){
     stop('Input data x must be POSIXct time values')
@@ -31,12 +31,12 @@ burstBounds <- function(x, Fs, minutes = NULL) {
     bounds = c(1,bounds) # Add on the first row index
     bounds = c(bounds,length(x))  # Add on the final row index
   } else if (length(bounds) == 0){
-    if (is.null(minutes)){
-      stop('Please enter a minutes value for desired sampling burst length')
+    if (is.null(burstLength)){
+      stop('Please enter a burstLength value (in minutes) for desired sampling burst length')
     }
     # If bounds has length 0, the dataset is continuous
     # Calculate the number of rows in a time chunk
-    stepSize = minutes * 60 * Fs #  minutes x 60 seconds x sample rate
+    stepSize = burstLength * 60 * Fs #  minutes x 60 seconds x sample rate
     # Generate a set of chunk boundaries based on stepSize
     bounds = seq(from = 1, to = length(x), by = stepSize)
     bounds = c(bounds,length(x)) # Add on the final row index
