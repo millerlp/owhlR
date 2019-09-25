@@ -19,6 +19,7 @@
 #'
 #' @export
 #' @importFrom utils read.csv setTxtProgressBar txtProgressBar
+#' @importFrom stats coef lm
 
 
 joinOWHLfiles <- function(filenames, timezone = 'UTC', verbose = FALSE) {
@@ -181,12 +182,12 @@ joinOWHLfiles <- function(filenames, timezone = 'UTC', verbose = FALSE) {
 	      beforeTempC <- tempdat$TempC[nrow(tempdat)]
 	      afterTempC <- afterskip$TempC[1]
 	      # Fit a linear model to the pressure values
-	      presslm <- coef(lm(c(beforePress, afterPress) ~ c(1, 6)))
+	      presslm <- stats::coef(stats::lm(c(beforePress, afterPress) ~ c(1, 6)))
 	      xs <- seq(2, 5)
 	      # Interpolate the 4 missing values
 	      interpPress <- (xs * presslm[2]) + presslm[1]
 	      # Do the same routine for temperature
-	      templm <- coef(lm(c(beforeTempC, afterTempC) ~ c(1, 6)))
+	      templm <- stats::coef(stats::lm(c(beforeTempC, afterTempC) ~ c(1, 6)))
 	      interpTempC <- (xs * templm[2]) + templm[1]
 
 	      afterskip2 <- afterskip
