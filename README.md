@@ -25,4 +25,5 @@ install_github('millerlp/owhlR')
 ```
 
 For more information on the Open Wave Height Logger project, see
-<https://lukemiller.org/?s=owhl>.
+<https://lukemiller.org/?s=owhl> and the Github repository:
+<https://github.com/millerlp/OWHL>
