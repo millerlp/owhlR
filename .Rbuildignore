@@ -1,2 +1,15 @@
+^README\.Rmd$  # ignore README.md files, usually for github
+^\.settings$  # Eclipse project file, StatET
+^\.git$
+^\.project$  # Eclipse settings file
+^\.gitattribute$
+^\.gitignore$
+^README\.Rmd$
+^README-.*\.png$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^cran-comments\.md$
+^CRAN-RELEASE$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
