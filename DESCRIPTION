@@ -4,7 +4,7 @@ Title: Open Wave Height Logger Data Processing In R
 Version: 0.1.0
 Authors@R: c(person("Luke", "Miller", email= "contact@lukemiller.org", role = c("aut","cre")))
 Description: Process Open Wave Height Logger pressure data to produce ocean wave statistics.
-URL: https://github.com/millerlp/owhlR
+URL: https://github.com/millerlp/owhlR, https://millerlp.github.io/owhlR/
 BugReports: https://github.com/millerlp/owhlR/issues
 Depends:
     R (>= 3.3.0)
