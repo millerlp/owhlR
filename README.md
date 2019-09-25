@@ -1,0 +1,27 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# Open Wave Height Logger data processing with R
+
+The package `owhlR` contains functions to post-process raw csv data
+files produced by an Open Wave Height Logger (OWHL) pressure sensor data
+logger. See the vignette `OWHL-file-handling-vignette` for a
+walk-through of the steps.
+
+This package depends on the `oceanwaves` package and its downstream
+dependencies for the calculation of wave statistics after the raw
+pressure data have been imported and quality-checked.
+
+To install the development version of this package from within R, first
+install the package `devtools`
+<https://CRAN.R-project.org/package=devtools> and then install this
+package from Github:
+
+``` r
+install.packages('devtools')
+library(devtools)
+install_github('millerlp/owhlR')
+```
+
+For more information on the Open Wave Height Logger project, see
+<https://lukemiller.org/?s=owhl>.
