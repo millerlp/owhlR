@@ -15,6 +15,9 @@
 #' @export
 #'
 #' @importFrom oce swDepth
+#'
+#' @examples
+#' millibarToSeawater(2039.604, latitude = 33.72) # Should return 20.25 (meters)
 
 
 millibarToSeawater <- function(x, latitude = NULL){
