@@ -4,14 +4,14 @@
 \alias{burstBounds}
 \title{Find or define boundaries of sampling bursts in time series}
 \usage{
-burstBounds(x, Fs, minutes = NULL)
+burstBounds(x, Fs, burstLength = NULL)
 }
 \arguments{
 \item{x}{A vector of POSIXct time stamps}
 
 \item{Fs}{Sampling rate, units of Hertz (samples per second)}
 
-\item{minutes}{Desired length, in minutes, of sampling bursts to be analyzed}
+\item{burstLength}{Desired length, in minutes, of sampling bursts to be analyzed}
 }
 \value{
 A vector of row indices from input vector x that define time

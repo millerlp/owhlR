@@ -23,3 +23,6 @@ Convert water pressure data, in units of millibar, to the
 equivalent depth (or elevation above the pressure sensor if you
 prefer that perspective) of seawater in meters.
 }
+\examples{
+millibarToSeawater(2039.604, latitude = 33.72) # Should return 20.25 (meters)
+}
