@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-The `owhlR` package was originally created to support the post-processing workflow of the Open Wave Height Logger project. The package contains functions to assist in combining raw csv files from a OWHL device, and this vignette contains a walkthrough of the steps involved in proceeding from raw pressure data contained in an OWHL csv file to a time series of sea surface elevation data that can be used to generate oecan wave statistics. 
+The `owhlR` package was originally created to support the post-processing workflow of the Open Wave Height Logger (OWHL) project. The package contains functions to assist in combining raw csv files from a OWHL device, and this vignette contains a walkthrough of the steps involved in proceeding from raw pressure data contained in an OWHL csv file to a time series of sea surface elevation data that can be used to generate oecan wave statistics. 
 
 # Starting out
 
@@ -68,7 +68,7 @@ file import can be turned on with the `verbose = TRUE` argument.
 
 ```{r joinOWHLfiles}
 myTimeZone = 'UTC'
-dat = owhlR::joinOWHLfiles(filenames, timezone = myTimeZone, verbose = TRUE)
+dat = owhlR::joinOWHLfiles(filenames, timezone = myTimeZone, verbose = FALSE)
 ```
 
 The `joinOWHLfiles` function consists of several steps:
@@ -107,27 +107,30 @@ dat$swPressure.mbar = dat$Pressure.mbar - atmosPressure.mbar
 ```
 
 It is also important to judge whether the OWHL sensor had any 
-pressure offset due to factors such as manufacturing variance or 
+pressure offset due to factors such as manufacturing variance in the pressure sensor chip or 
 residual pressure in the oil-filled bladder attached to the sensor (if
 used). One method to remove any offset is to compare a set of pressure
-readings from the data set while the OWHL was at the sea surface just prior deployment underwater. Ideally the value recorded by the OWHL at the ocean surface would be equivalent to the local atmospheric pressure, but any difference that exists can be removed from the entire timeseries. 
+readings from the data set while the OWHL was at the sea surface just prior to deployment underwater. Ideally the value recorded by the OWHL at the ocean surface would be equivalent to the local atmospheric pressure, but any difference that exists can be removed from the entire timeseries. 
 
 Here we'll define a time value when the OWHL was known to be at the ocean surface, in the boat, just before being taken underwater. Then we
 find the row index in the `dat` data frame that is closest to that
 time stamp, and extract 10 seconds of data (40 samples at 4 Hz), and calculate the average pressure reading. This assumes that you have 
-included the data from the surface period prior to the dpeloyment, which we will remove at a later step. 
+included the data from the surface period prior to the deployment, which we will remove at a later step. 
 
 ```{r surfaceTime}
-# Define a surface reading for OWHL and start of subsurface deployment
+# Define a time value for a surface reading for OWHL prior to 
+# the start of the subsurface deployment
 owhlSurfaceTime = as.POSIXct('2016-08-19 18:25', tz = 'UTC')
 
-# Grab an average surface pressure reading for the OWHL unit
+# Find the row index of the timestamp in the dataset that is
+# closest to the surface time we just created
 surfaceIndx = which.min(abs(dat$DateTime - owhlSurfaceTime))
 
 # Grab 10 seconds of surface pressure readings. This will be used to determine
 # any pressure offset in the sensor, when compared to local sea surface air
 # pressure at the time of deployment.
 surfaceOWHLPress = dat$Pressure.mbar[surfaceIndx:(surfaceIndx+40)]
+# Round off to a sensible number of significant figures
 surfaceOWHLPress = round(mean(surfaceOWHLPress),dig=1)
 
 # Calculate the offset from the known sea level atmospheric pressure
@@ -138,6 +141,7 @@ offsetValue = surfaceOWHLPress - atmosPressure.mbar
 dat$swPressure.mbar = dat$swPressure.mbar - offsetValue
 
 ```
+
 After subtracting off the atmospheric pressure and any offset from the absolute pressure values in the raw data files, we are left with the gauge pressure, the pressure due only to the water column above the pressure sensor (with the caveat that strong currents could impinge
 on a sensor port strongly enough to induce a small pressure signal that isn't due 
 purely to the pressure head above the sensor).
@@ -164,12 +168,15 @@ dat = dat[dat$DateTime <= owhlDeployEndTime,]
 ## Convert pressure to sea surface elevation
 
 To convert pressure values to sea surface elevation (height of the
-water column above the sensor), we'll use the `millibarToSeawater` function, which is a wrapper around the `swDepth` function from the `oce` package. This function relies on knowing the latitude where the pressure data were collected, so you need to provide that
+water column above the sensor), we'll use the `millibarToSeawater` function, which is a wrapper around the `swDepth` function from the `oce` package (Kelley & Richards, 2019, https://CRAN.R-project.org/package=oce). The defaults for the `swDepth` function are used, which call the `gsw_z_from_p()` function from the 
+package `gsw`, which is based on from the 75-term equation for specific volume 
+described at http://www.teos-10.org/ (Thermodynamic Equation of Seawater 2010). This conversion relies on knowing the latitude where the pressure data were collected, so you need to provide that
 value as either a positive (Northern Hemisphere) or negative (Southern Hemisphere) decimal value. 
 
 ```{r convertPressureToSeaWater}
 # Create a new column in dat with the estimated depth calculated
-# from the pressure in millibar
+# from the pressure in millibar. The latitude of the example
+# deployment was approximately 33.72 (degrees North).
 dat$swDepth.m = owhlR::millibarToSeawater(dat$swPressure.mbar, latitude = 33.72)
 ```
 
@@ -192,7 +199,7 @@ dat$swDepthCorrected.m = prCorr(dat$swDepth.m, Fs = Fs, zpt = 0.1)
 
 We'll plot the corrected data and the uncorrected data on the same plot to show how the pressure attenuation correction changes the estimated sea surface elevations. 
 
-```{r deattenuationFigure1, fig.width = 8, fig.height = 4}
+```{r deattenuationFigure1, fig.width = 8, fig.height = 4,fig.cap='Comparison of the raw surface elevation (blue) and pressure-attenuation-corrected surface elevation (red). Pressure signal attenuation causes the true surface elevation fluctuation to be underestimated, and the correction attempts to undo that.'}
 # Plot the de-attenuated data
 plot(x = dat$DateTime, 
      y = dat$swDepthCorrected.m, type = 'l', col = 'red', 
@@ -203,9 +210,34 @@ legend('topright',legend=c('Corrected','Raw'), col = c('red','blue'),
        lty = 1)
 ```
 
+Below we'll plot the short time series of sea surface elevations
+derived from our input csv files. 
+
+```{r waveRecordPlot,fig.width=8,fig.height=4,fig.cap='Time series of surface elevations.'}
+cols = '#E41A1C'  # red color
+ylabloc = 3.2  # line location for y-axis labels
+mybg = 'grey80' # color for plot backgrounds
+op <- par(mar = c(4,6,1,1))
+######################################
+# Plot surface elevation record
+plot(x = dat$DateTime,
+		y = dat$swDepthCorrected.m,
+		type = 'n', las = 1, ylab = '', xaxt='n',
+		xlab = 'Time', col = cols)
+rect(par()$usr[1],par()$usr[3],par()$usr[2],par()$usr[4],col=mybg)
+grid(col ='white')
+box()
+lines(dat$DateTime, 
+		dat$swDepthCorrected.m, col = cols)
+mtext(side = 2, line = ylabloc+0.7, text = 'Surface elevation, m')
+axis(side=1,at = pretty(dat$DateTime), 
+     labels = format(pretty(dat$DateTime),format='%H:%M') )
+par(op)
+```
+
 At this point, the de-attenuated sea surface elevation data in the
 `dat$swDepthCorrected.m` column can be used to calculate various
-wave statistics. 
+wave statistics.
 
 ## Calculating wave statistics
 
@@ -234,13 +266,13 @@ testbounds = burstBounds(testtimes, Fs = 1)
 
 ```
 
-
+The `processBursts` function takes several arguments. You need to provide a vector of sea surface elevations (in meters), a vector of `POSIXct` time stamps, the length of each burst you want to analyze (in minutes), the sampling rate of the sensor (default 4Hz for a OWHL), the method of analysis you want to use to generate the wave statistics (`sp` for spectral analysis, `zc` for zero-crossing wave-by-wave analysis), and the time zone of your input data. 
 
 ```{r processTimeChunks}
 # Go through each time chunk and calculate the wave
 # height and period of the de-trended data (removing tide signal).
 
-wavesSP = processBursts(Ht = dat$swDepthCorrected.m,
+wavesSP = owhlR::processBursts(Ht = dat$swDepthCorrected.m,
                           times = dat$DateTime,
                           burstLength = 5,
                           Fs = 4,
@@ -278,7 +310,7 @@ Wave climate estimates based on spectral analysis methods are probably the more 
 # Go through each time chunk and calculate the wave
 # height and period of the de-trended data (removing tide signal).
 
-wavesZC = processBursts(Ht = dat$swDepthCorrected.m,
+wavesZC = owhlR::processBursts(Ht = dat$swDepthCorrected.m,
                           times = dat$DateTime,
                           burstLength = 5,
                           Fs = 4,
@@ -308,3 +340,50 @@ wavesZC
 ```
 
 
+
+Next we can plot the estimated significant wave heights from the
+two different analysis methods (spectral and zero-crossing) for each of the analyzed bursts. 
+
+```{r sigWavePlot,fig.width=8,fig.height=4,fig.cap='Estimates of signficant wave height from each analyzed burst of samples, using either the spectral analysis method or zero-crossing method.'}
+ylims = range(c(wavesSP$Hm0,wavesZC$Hsig))
+op<-par(mar=c(5,6,1,1))
+plot(x = wavesSP$DateTime,y = wavesSP$Hm0, type = 'n',
+     ylab = 'Significant wave\n height, m',
+     xlab = 'Time',
+     xaxt='n', las = 1, ylim = ylims)
+rect(par()$usr[1],par()$usr[3],par()$usr[2],par()$usr[4],col=mybg)
+grid(col ='white')
+box()
+lines(x = wavesSP$DateTime, y = wavesSP$Hm0, type = 'b')
+axis(side=1,at = pretty(dat$DateTime), 
+     labels = format(pretty(dat$DateTime),format='%H:%M') )
+
+lines(x = wavesZC$DateTime, y = wavesZC$Hsig, type = 'b',
+      col = 'red')
+legend('topleft',legend=c('Hm0, spectral method','Hsig, zero-cross'), col = c('black','red'), lty = c(1,1),
+       pch = c(1,1))
+par(op)
+```
+
+
+```{r periodPlot,fig.width=8,fig.height=4,fig.cap='Estimates of wave period from each analyzed burst of samples, using either the spectral analysis method or zero-crossing method.'}
+ylims = c(3,25)
+op<-par(mar=c(5,6,1,1))
+plot(x = wavesSP$DateTime,y = wavesSP$Hm0, type = 'n',
+     ylab = 'Period, seconds',
+     xlab = 'Time',
+     xaxt='n', las = 1, ylim = ylims)
+rect(par()$usr[1],par()$usr[3],par()$usr[2],par()$usr[4],col=mybg)
+grid(col ='white')
+box()
+lines(x = wavesSP$DateTime, y = wavesSP$Tp, type = 'b')
+axis(side=1,at = pretty(dat$DateTime), 
+     labels = format(pretty(dat$DateTime),format='%H:%M') )
+
+lines(x = wavesZC$DateTime, y = wavesZC$Tsig, type = 'b',
+      col = 'red')
+legend('topleft',legend=c('Peak period, spectral method',
+                          'Period of upper 1/3 of waves, zero-cross'), col = c('black','red'), lty = c(1,1),
+       pch = c(1,1))
+par(op)
+```
