@@ -22,7 +22,7 @@
 processBursts <- function(Ht, times, burstLength = NULL, Fs,
                           method = 'sp', tzone = NULL){
   # Determine boundaries of bursts
-  bounds <- owhlR::burstBounds(times, Fs = Fs, minutes = burstLength)
+  bounds <- owhlR::burstBounds(times, Fs = Fs, burstLength = burstLength)
 
   for (i in 1: (length(bounds)-1) ){
     # Extract the chunks of contiguous data
@@ -34,7 +34,7 @@ processBursts <- function(Ht, times, burstLength = NULL, Fs,
       chunklength <- as.numeric(difftime(timesHt[bounds[2]],
                               timesHt[bounds[1]],
                               units='mins'))
-      if (chunklength < minutes) {
+      if (chunklength < burstLength) {
         stop('Time series is too short')
       }
     } else if (length(bounds) > 2) {
