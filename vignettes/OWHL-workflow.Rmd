@@ -132,18 +132,21 @@ weather$DateTime = as.POSIXct(weather$DateTime, format = "%m/%d/%Y %H:%M",
 
 ```
 
-The sea level air pressure data will be sampled on a somewhat irregular interval,
+The sea level air pressure data will often be reported on a somewhat irregular interval,
 usually around 5 minutes, but often with longer gaps. Because this won't match
 the 4 Hz sampling rate of the OWHL data, we'll want to linearly interpolate the 
 air pressure data to match the OWHL interval. We'll make use of functions in 
 the `zoo` package, which is one of the packages `owhlR` depends on.
 
-```{r interpolateAirPressure}
+```{r loadZoo, warning=FALSE}
 library(zoo)
+```
 
-# OWHL data set, sampled at a higher frequency
+
+```{r interpolateAirPressure}
+# Convert OWHL data set, sampled at a higher frequency, to a zoo object
 ref = zoo(dat[,'Pressure.mbar'], order.by = dat[,'DateTime'])
-# Air pressure data, lower frequency
+# Air pressure data, lower frequency, convert to a zoo object
 air = zoo(weather[,'SeaLevelPressure.mbar'],  
 		order.by = weather$DateTime)
 # Linearly interpolate the data in 'air' to match the time index in 'ref',
@@ -180,7 +183,7 @@ find the row index in the `dat` data frame that is closest to that
 time stamp, and extract 10 seconds of data (40 samples at 4 Hz), and calculate 
 the average pressure reading. This assumes that you have 
 included the data from the surface period prior to the deployment, which we will
-remove at a later step. 
+remove at a later step. To estimate the pressure offset in the sensor, we will use the sea level pressure data for the same time point, which we previously imported and added to our dataset in the `dat$SeaLevelPress.mbar` column.
 
 ```{r surfaceTime}
 # Define a time value for a surface reading for OWHL prior to 
@@ -201,9 +204,12 @@ surfaceOWHLPress = round(mean(surfaceOWHLPress),dig=1)
 # Calculate the offset from the known sea level atmospheric pressure
 # (usally obtained from a weather station). In this case, we'll use
 # the air pressure data we imported, and get the pressure value for the 
-# matching time point
-atmosPressure.mbar = dat$SeaLevelPress.mbar[surfaceIndx]
+# matching time points
+atmosPressure.mbar = round(mean(dat$SeaLevelPress.mbar[surfaceIndx:(surfaceIndx+40)]))
+
 offsetValue = surfaceOWHLPress - atmosPressure.mbar
+# Ideally offsetValue is 0, but it should typically be a few 10's of mbar
+# unless your sensor had a major pressure offset.
 
 # Subtract offsetValue from all pressure values
 dat$swPressure.mbar = dat$swPressure.mbar - offsetValue
