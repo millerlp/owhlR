@@ -1,7 +1,7 @@
 Package: owhlR
 Type: Package
 Title: Open Wave Height Logger Data Processing In R
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(person("Luke", "Miller", email= "contact@lukemiller.org", role = c("aut","cre")))
 Description: Process Open Wave Height Logger pressure data to produce ocean wave statistics.
 URL: https://github.com/millerlp/owhlR, https://millerlp.github.io/owhlR/
