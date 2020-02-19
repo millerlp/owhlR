@@ -41,7 +41,7 @@ library(oceanwaves)
 
 # Importing OWHL csv files
 
-The Open Wave Height Logger produces daily datafiles, in a comma-separated-value (.csv) format. Those files contain a header
+The Open Wave Height Logger produces daily data files, in a comma-separated-value (.csv) format. Those files contain a header
 row with optional deployment information, along with a row of column headers. The import process would normally begin by generating a 
 vector of filenames (include file path) that you want to join. The
 `dir()` function can be used to generate the set of filenames.
@@ -55,7 +55,7 @@ filenames = c(system.file("extdata","20160819_1820_00.csv",
 ```
 
 ```{r getFilenames, eval=FALSE}
-filenames <- dir(path=".", pattern = '*.csv', full.names=TRUE)
+filenames <- dir(path="./path/to/your/files", pattern = '*.csv', full.names=TRUE)
 ```
 
 The set of filenames can be passed to the `joinOWHLfiles` function. 
@@ -94,19 +94,20 @@ head(dat)
 
 ## Removing atmospheric pressure and sensor offset
 
-The `pressure.mbar` values in the resulting data frame are absolute
+The `Pressure.mbar` values in the resulting data frame are absolute
 pressures in millibar. This includes the pressure signal due to 
 the air above the sea surface, which we will need to remove from the
 data in order to get only the pressure due to the column of water above the OWHL
-sensor. The sea level atmospheric pressure could come from a variety of sources 
+sensor. You will need to obtain a sea level pressure data set from an outside source in order to perform this compensation. The sea level atmospheric pressure could come from a variety of sources 
 including nearby weather stations. Ideally this would be a time series of 
-atmospheric pressure records that aligns with the 
+atmospheric pressure records that overlaps with the 
 OWHL time series. 
 
 For this example, we will use an example sea level air pressure dataset, measured
 in millibar, sampled at roughly 5 minute intervals. Actual historic air pressure
 data for various sites in the United States can be downloaded from a repository
-such as http://mesowest.utah.edu. 
+such as http://mesowest.utah.edu. You may need to register an account there
+in order to download longer term air pressure data sets. 
 
 ```{r, echo=FALSE}
 # Get external data files from package install
@@ -115,6 +116,7 @@ weatherfile = c(system.file("extdata","201608_airpressure.csv",
 ```
 
 ```{r, eval=FALSE}
+# Define the path and file name for the air pressure data set
 weatherfile = "./Weather_data/201608_airpressure.csv"
 ```
 
@@ -126,7 +128,10 @@ simply divide by 100 to convert Pascals to millibar.
 
 
 ```{r}
+# Read in the air pressure data
 weather = read.csv(weatherfile)
+head(weather)
+# Convert the DateTime column to a POSIXct format
 weather$DateTime = as.POSIXct(weather$DateTime, format = "%m/%d/%Y %H:%M", 
 				tz = 'UTC')
 
@@ -163,6 +168,7 @@ we can subtract off the air pressure signal from each pressure reading in the
 OWHL data set. 
 
 ```{r atmosPressure}
+# Call the new column swPressure.mbar for "seawater pressure"
 dat$swPressure.mbar = dat$Pressure.mbar - dat$SeaLevelPress.mbar
 ```
 
@@ -249,7 +255,7 @@ To convert pressure values to sea surface elevation (height of the
 water column above the sensor), we'll use the `millibarToSeawater` function, which is a wrapper around the `swDepth` function from the `oce` package (Kelley & Richards, 2019, https://CRAN.R-project.org/package=oce). The defaults for the `swDepth` function are used, which call the `gsw_z_from_p()` function from the 
 package `gsw`, which is based on from the 75-term equation for specific volume 
 described at http://www.teos-10.org/ (Thermodynamic Equation of Seawater 2010). This conversion relies on knowing the latitude where the pressure data were collected, so you need to provide that
-value as either a positive (Northern Hemisphere) or negative (Southern Hemisphere) decimal value. 
+value as either a positive (Northern Hemisphere) or negative (Southern Hemisphere) decimal value. Note that this method does not compensate for actual seawater density at your field site. 
 
 ```{r convertPressureToSeaWater}
 # Create a new column in dat with the estimated depth calculated
@@ -261,7 +267,7 @@ dat$swDepth.m = owhlR::millibarToSeawater(dat$swPressure.mbar, latitude = 33.72)
 
 ## Correcting for pressure attenuation
 
-If your sea surface elevation data were produced by a pressure transducer data logger mounted near the sea floor, rather than a surface buoy, the dynamic pressure signal that the data logger records will be muted to some degree depending on the depth of the data logger and the wave period. As a result, the sea surface elevation record from the bottom-mounted sensor will be an underestimate of what the actual height of the water column above the sensor was, and this underestimate gets worse as the depth of the sensor increases or the wave period gets shorter. The `oceanwaves` package provides a function `prCorr` that attempts to correct for this pressure signal attenuation and thus better recreate the actual water surface height fluctuations (a.k.a. waves).  
+If your sea surface elevation data were produced by a pressure transducer data logger mounted near the sea floor (such as the Open Wave Height Logger), rather than a surface buoy, the dynamic pressure signal that the data logger records will be muted to some degree depending on the depth of the data logger and the wave period. As a result, the sea surface elevation record from the bottom-mounted sensor will be an underestimate of what the actual height of the water column above the sensor was, and this underestimate gets worse as the depth of the sensor increases or the wave period gets shorter. The `oceanwaves` package provides a function `prCorr` that attempts to correct for this pressure signal attenuation and thus better recreate the actual water surface height fluctuations (a.k.a. waves).  
 
 The `prCorr` function needs a few arguments to work. In addition to the vector of sea surface elevations (in meters), you also need to provide the sampling frequency `Fs` for the data logger (4 Hz, i.e. 4 samples per second, in our example dataset), and the height `zpt` of the data logger above the sea floor in units of meters. The height of the pressure sensor above the sea floor matters because the height of waves at the surface is driven by their interaction with the seafloor, and the pressure signal attenuation is also 
 a function of where in the water column the sensor sits. In many cases the sensor will be situated just above the seafloor, but there may be cases where the pressure sensor is strapped to a pier piling or other platform much closer to the surface than the 
