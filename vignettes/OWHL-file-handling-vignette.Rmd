@@ -97,25 +97,90 @@ head(dat)
 The `pressure.mbar` values in the resulting data frame are absolute
 pressures in millibar. This includes the pressure signal due to 
 the air above the sea surface, which we will need to remove from the
-data in order to get only the pressure due to the column of water above the OWHL sensor. The sea level atmospheric pressure could come from a variety of sources including nearby weather stations. Ideally this would be a time series of atmospheric pressure records that aligns with the 
-OWHL time series. For this example, we will just use a single average
-value for the entire time series based on the pressure reading at the start of the deployment of 1014 mbar. 
+data in order to get only the pressure due to the column of water above the OWHL
+sensor. The sea level atmospheric pressure could come from a variety of sources 
+including nearby weather stations. Ideally this would be a time series of 
+atmospheric pressure records that aligns with the 
+OWHL time series. 
 
-```{r atmosPressure}
-atmosPressure.mbar = 1014
-dat$swPressure.mbar = dat$Pressure.mbar - atmosPressure.mbar
+For this example, we will use an example sea level air pressure dataset, measured
+in millibar, sampled at roughly 5 minute intervals. Actual historic air pressure
+data for various sites in the United States can be downloaded from a repository
+such as http://mesowest.utah.edu. 
+
+```{r, echo=FALSE}
+# Get external data files from package install
+weatherfile = c(system.file("extdata","201608_airpressure.csv",
+                          package = "owhlR"))
 ```
 
+```{r, eval=FALSE}
+weatherfile = "./Weather_data/201608_airpressure.csv"
+```
+
+Import the air pressure data file. The example file has a column `DateTime` 
+containing the date and time stamps, in the UTC time zone, and a column 
+`SeaLevelPressure.mbar` with the sea level air pressure in millibar, which matches
+the OWHL measurement units. If your air pressure data are recorded in Pascals,
+simply divide by 100 to convert Pascals to millibar.
+
+
+```{r}
+weather = read.csv(weatherfile)
+weather$DateTime = as.POSIXct(weather$DateTime, format = "%m/%d/%Y %H:%M", 
+				tz = 'UTC')
+
+```
+
+The sea level air pressure data will be sampled on a somewhat irregular interval,
+usually around 5 minutes, but often with longer gaps. Because this won't match
+the 4 Hz sampling rate of the OWHL data, we'll want to linearly interpolate the 
+air pressure data to match the OWHL interval. We'll make use of functions in 
+the `zoo` package, which is one of the packages `owhlR` depends on.
+
+```{r interpolateAirPressure}
+library(zoo)
+
+# OWHL data set, sampled at a higher frequency
+ref = zoo(dat[,'Pressure.mbar'], order.by = dat[,'DateTime'])
+# Air pressure data, lower frequency
+air = zoo(weather[,'SeaLevelPressure.mbar'],  
+		order.by = weather$DateTime)
+# Linearly interpolate the data in 'air' to match the time index in 'ref',
+# which should be 4 Hz, starting and ending when the OWHL data set starts and
+# ends
+airout = window(na.approx(merge(ref,air)),index(ref))
+
+# Copy the resulting sea level pressure data into 'dat' data frame
+dat$SeaLevelPress.mbar = round(as.numeric(airout$air), digits=2)
+
+```
+Once we have the interpolated sea level air pressure data in our data frame,
+we can subtract off the air pressure signal from each pressure reading in the
+OWHL data set. 
+
+```{r atmosPressure}
+dat$swPressure.mbar = dat$Pressure.mbar - dat$SeaLevelPress.mbar
+```
+
+
 It is also important to judge whether the OWHL sensor had any 
-pressure offset due to factors such as manufacturing variance in the pressure sensor chip or 
+pressure offset due to factors such as manufacturing variance in the pressure 
+sensor chip or 
 residual pressure in the oil-filled bladder attached to the sensor (if
 used). One method to remove any offset is to compare a set of pressure
-readings from the data set while the OWHL was at the sea surface just prior to deployment underwater. Ideally the value recorded by the OWHL at the ocean surface would be equivalent to the local atmospheric pressure, but any difference that exists can be removed from the entire timeseries. 
+readings from the data set while the OWHL was at the sea surface just prior to 
+deployment underwater. Ideally the value recorded by the OWHL at the ocean 
+surface would be equivalent to the local atmospheric pressure, but any 
+difference that exists can be removed from the entire timeseries. 
 
-Here we'll define a time value when the OWHL was known to be at the ocean surface, in the boat, just before being taken underwater. Then we
+Here we'll define a time value when the OWHL was known to be at the ocean 
+surface, in the boat, just before being taken underwater. Then we
 find the row index in the `dat` data frame that is closest to that
-time stamp, and extract 10 seconds of data (40 samples at 4 Hz), and calculate the average pressure reading. This assumes that you have 
-included the data from the surface period prior to the deployment, which we will remove at a later step. 
+time stamp, and extract 10 seconds of data (40 samples at 4 Hz), and calculate 
+the average pressure reading. This assumes that you have 
+included the data from the surface period prior to the deployment, which we will
+remove at a later step. 
 
 ```{r surfaceTime}
 # Define a time value for a surface reading for OWHL prior to 
@@ -134,7 +199,10 @@ surfaceOWHLPress = dat$Pressure.mbar[surfaceIndx:(surfaceIndx+40)]
 surfaceOWHLPress = round(mean(surfaceOWHLPress),dig=1)
 
 # Calculate the offset from the known sea level atmospheric pressure
-# (usally obtained from a weather station)
+# (usally obtained from a weather station). In this case, we'll use
+# the air pressure data we imported, and get the pressure value for the 
+# matching time point
+atmosPressure.mbar = dat$SeaLevelPress.mbar[surfaceIndx]
 offsetValue = surfaceOWHLPress - atmosPressure.mbar
 
 # Subtract offsetValue from all pressure values
@@ -142,7 +210,11 @@ dat$swPressure.mbar = dat$swPressure.mbar - offsetValue
 
 ```
 
-After subtracting off the atmospheric pressure and any offset from the absolute pressure values in the raw data files, we are left with the gauge pressure, the pressure due only to the water column above the pressure sensor (with the caveat that strong currents could impinge
+After subtracting off the atmospheric pressure and any offset from the absolute 
+pressure values in the raw data files, we are left with the gauge pressure, that
+is the 
+pressure due only to the water column above the pressure sensor (with the caveat
+that strong currents could impinge
 on a sensor port strongly enough to induce a small pressure signal that isn't due 
 purely to the pressure head above the sensor).
 
