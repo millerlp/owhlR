@@ -5,5 +5,5 @@
 inst/doc
 doc
 Meta
-.project$  # Eclipse project file
+*.project$  # Eclipse project file
 ^\.settings$  # Eclipse project file directory
