@@ -9,3 +9,4 @@ Meta
 .project # Eclipse project file
 *.settings # Eclipse setting directory
 *.prefs  # Eclipse prefs files
+.project
