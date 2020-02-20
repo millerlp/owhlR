@@ -1,7 +1,7 @@
 ---
 title: "OWHL file handling"
 author: "Luke Miller"
-output: rmarkdown::html_vignette
+output: rmarkdown::pdf_document
 vignette: >
   %\VignetteIndexEntry{OWHL file handling}
   %\VignetteEncoding{UTF-8}
