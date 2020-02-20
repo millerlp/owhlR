@@ -5,8 +5,8 @@
 
 The package `owhlR` contains functions to post-process raw csv data
 files produced by an Open Wave Height Logger (OWHL) pressure sensor data
-logger. See the vignette `OWHL-file-handling-vignette` for a
-walk-through of the steps.
+logger. See the vignette `OWHL-workflow` for a walk-through of the
+steps.
 
 This package depends on the `oceanwaves` package
 <https://github.com/millerlp/oceanwaves> and its downstream dependencies
@@ -21,7 +21,14 @@ package from Github:
 ``` r
 install.packages('devtools')
 library(devtools)
-install_github('millerlp/owhlR')
+install_github('millerlp/owhlR', build_vignettes = TRUE)
+```
+
+To open the `OWHL-workflow` vignette, run the following commands
+
+``` r
+library(owhlR)
+vignette('OWHL-workflow', package = 'owhlR')
 ```
 
 For more information on the Open Wave Height Logger project, see
