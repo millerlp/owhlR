@@ -3,3 +3,7 @@
 .RData
 .Ruserdata
 inst/doc
+doc
+Meta
+.project$  # Eclipse project file
+^\.settings$  # Eclipse project file directory
